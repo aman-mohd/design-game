@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: 'Nunito', system-ui, sans-serif;
+    color: #3c3c3c;
+    background: #f7f7f7;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: 'Baloo 2', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  /* Chunky Duolingo-style button */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-display font-bold uppercase tracking-wide text-white transition-all active:translate-y-0.5 active:shadow-none select-none cursor-pointer;
+  }
+  .btn-green {
+    @apply btn bg-duo-green shadow-chunky hover:brightness-105;
+    box-shadow: 0 4px 0 #46a302;
+  }
+  .btn-blue {
+    @apply btn bg-cat-compute shadow-chunky hover:brightness-105;
+    box-shadow: 0 4px 0 #1186c4;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-line bg-white px-5 py-3 font-display font-bold uppercase tracking-wide text-subtle transition-all hover:bg-cloud active:translate-y-0.5 cursor-pointer;
+  }
+  .btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+  .card {
+    @apply rounded-3xl border-2 border-line bg-white shadow-card;
+  }
+}
+
+@layer components {
+  /* Chunky Duolingo-style range slider */
+  .duo-range {
+    @apply h-3 w-full cursor-pointer appearance-none rounded-full bg-line;
+    accent-color: #58cc02;
+  }
+  .duo-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 22px;
+    width: 22px;
+    border-radius: 9999px;
+    background: #58cc02;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 0 #46a302;
+    cursor: pointer;
+  }
+  .duo-range::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 9999px;
+    background: #58cc02;
+    border: 3px solid #fff;
+    cursor: pointer;
+  }
+}
+
+/* React Flow overrides to fit the playful theme */
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__edge-path {
+  stroke-width: 3;
+}
