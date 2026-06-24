@@ -60,4 +60,10 @@ src/
 
 Levels are pure data — append to `src/data/levels.ts` with a brief, requirements,
 pre-placed nodes, available tools, default traffic, and a scoring rubric. The
-engine and UI are generic, so no code changes are needed for new content.
+engine and UI are generic, so most new content needs no code changes.
+
+Every level is grounded in [ByteByteGo / system-design-101](https://github.com/ByteByteGoHq/system-design-101)
+and links back to the relevant topics from the requirements panel. See
+[**LEVELS_ROADMAP.md**](./LEVELS_ROADMAP.md) for the wave-by-wave plan to turn the
+whole repo into levels (rate limiter, notifications, chat, YouTube, payments,
+stock exchange, and more).

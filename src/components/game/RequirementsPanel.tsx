@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Target, Gauge } from 'lucide-react';
+import { CheckCircle2, Circle, Target, Gauge, BookOpen } from 'lucide-react';
 import type { Level } from '../../data/types';
 import { useGame } from '../../store/gameStore';
 import { Mascot } from '../ui/Mascot';
@@ -29,6 +29,30 @@ export function RequirementsPanel({ level }: { level: Level }) {
             <ReqRow key={r.id} text={r.text} met={met.has(r.id)} hasResult={!!result} />
           ))}
         </Section>
+
+        {level.references && level.references.length > 0 && (
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-subtle">
+              <BookOpen className="h-4 w-4" />
+              Learn the concepts
+            </div>
+            <ul className="space-y-1.5">
+              {level.references.map((ref) => (
+                <li key={ref.url}>
+                  <a
+                    href={ref.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 rounded-xl bg-cloud px-2.5 py-1.5 text-xs font-bold text-cat-compute hover:underline"
+                  >
+                    <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{ref.label}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

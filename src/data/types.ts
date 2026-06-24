@@ -130,6 +130,8 @@ export interface Level {
   availableToolIds: string[];
   trafficDefaults: TrafficConfig;
   rubric: Rubric;
+  /** Source material this level is grounded in (e.g. ByteByteGo topics). */
+  references?: { label: string; url: string }[];
 }
 
 // ── Scoring ──────────────────────────────────────────────────────────────────

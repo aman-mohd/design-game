@@ -48,6 +48,16 @@ export const LEVELS: Level[] = [
       weights: { correctness: 0.5, requirements: 0.3, efficiency: 0.2 },
       complexityBudget: 6,
     },
+    references: [
+      {
+        label: 'ByteByteGo · Unique ID Generator & KV stores',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#unique-id-generator-in-distributed-systems',
+      },
+      {
+        label: 'ByteByteGo · Top 5 Caching Strategies',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#top-caching-strategies',
+      },
+    ],
   },
 
   // ── Level 2 ────────────────────────────────────────────────────────────────
@@ -98,6 +108,20 @@ export const LEVELS: Level[] = [
       weights: { correctness: 0.5, requirements: 0.3, efficiency: 0.2 },
       complexityBudget: 10,
     },
+    references: [
+      {
+        label: 'ByteByteGo · Twitter “For You” Timeline',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#how-does-twitter-recommend-for-you-timeline-in-15-seconds',
+      },
+      {
+        label: 'ByteByteGo · Why CDNs are so popular',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#why-are-content-delivery-networks-cdn-so-popular',
+      },
+      {
+        label: 'ByteByteGo · Scaling websites for millions',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#scaling-websites-for-millions-of-users',
+      },
+    ],
   },
 
   // ── Level 3 ────────────────────────────────────────────────────────────────
@@ -154,6 +178,20 @@ export const LEVELS: Level[] = [
       weights: { correctness: 0.5, requirements: 0.3, efficiency: 0.2 },
       complexityBudget: 14,
     },
+    references: [
+      {
+        label: 'ByteByteGo · CAP Theorem',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#cap-theorem',
+      },
+      {
+        label: 'ByteByteGo · How to Design for High Availability',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#how-to-design-for-high-availability',
+      },
+      {
+        label: 'ByteByteGo · Read Replica Pattern',
+        url: 'https://github.com/ByteByteGoHq/system-design-101#read-replica-pattern',
+      },
+    ],
   },
 ];
 
