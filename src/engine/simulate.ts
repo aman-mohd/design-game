@@ -21,6 +21,7 @@ import { messagingChecks } from './checks/messaging';
 import { resilienceChecks } from './checks/resilience';
 import { overengineeringChecks } from './checks/overengineering';
 import { wiringChecks } from './checks/wiring';
+import { domainChecks } from './checks/domain';
 
 type Check = (graph: DesignGraph, traffic: TrafficConfig, level: Level) => Finding[];
 
@@ -33,6 +34,7 @@ const CHECKS: Check[] = [
   resilienceChecks,
   overengineeringChecks,
   wiringChecks,
+  domainChecks,
 ];
 
 const SEVERITY_RANK = { critical: 0, warn: 1, info: 2 } as const;
@@ -51,6 +53,12 @@ export const REMEDY_TOOLS: Record<string, string[]> = {
   'res-data-spof': ['read_replica'],
   'msg-no-queue-spike': ['message_queue', 'pubsub'],
   'compute-no-autoscale': ['autoscaler'],
+  // Domain (tag-gated) findings.
+  'api-no-gateway': ['api_gateway'],
+  'search-no-index': ['search_index'],
+  'fanout-no-queue': ['message_queue', 'pubsub'],
+  'fanout-no-workers': ['worker'],
+  'transcode-on-request-path': ['worker'],
 };
 
 /** True when the player has a tool in this level capable of resolving `id`. */
@@ -132,6 +140,22 @@ function requirementSatisfied(
 
   // Generic heuristics by requirement text keywords.
   const t = req.text.toLowerCase();
+  // Domain-specific keywords first (most specific wins).
+  if (t.includes('rate limit') || t.includes('throttl') || t.includes('abus')) {
+    return hasType(graph, 'api_gateway');
+  }
+  if (t.includes('search') || t.includes('autocomplete')) {
+    return hasType(graph, 'search_index');
+  }
+  if (t.includes('transcode')) {
+    return hasType(graph, 'worker');
+  }
+  if (t.includes('fan out') || t.includes('fan-out') || t.includes('fanout') || t.includes('notif')) {
+    return (hasType(graph, 'message_queue') || hasType(graph, 'pubsub')) && hasType(graph, 'worker');
+  }
+  if (t.includes('upload')) {
+    return reachableFromClient(graph, 'object_storage') || hasType(graph, 'object_storage');
+  }
   if (t.includes('store') || t.includes('persist') || t.includes('storage')) {
     return hasAnyDataStore(graph) && dataReachable;
   }

@@ -181,6 +181,8 @@ export interface Level {
   cap?: CapGuidance;
   /** A reference architecture revealed by the "Show best solution" button. */
   bestSolution?: SolutionGraph;
+  /** Domain tags that switch on specialised engine checks (e.g. 'search', 'fanout'). */
+  tags?: string[];
   rubric: Rubric;
   /** Source material this level is grounded in (e.g. ByteByteGo topics). */
   references?: { label: string; url: string }[];
