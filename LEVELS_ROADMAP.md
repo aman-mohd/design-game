@@ -1,6 +1,6 @@
 # 🗺️ DesignQuest Level Roadmap
 
-A plan to grow DesignQuest's curriculum from **3 shipped levels** to a full
+A plan to grow DesignQuest's curriculum from **7 shipped levels** to a full
 system-design course, drawing every level from
 [**ByteByteGo / system-design-101**](https://github.com/ByteByteGoHq/system-design-101).
 
@@ -17,36 +17,33 @@ sensible bottlenecks and hints.
 
 ---
 
-## ✅ Wave 0 — Shipped (the vertical slice)
+## ✅ Wave 0 & 1 — Shipped (7 levels)
 
 | # | Level | ByteByteGo grounding | Teaches |
 |---|-------|----------------------|---------|
 | 1 | **Your First Web App** (URL shortener) | Unique ID Generator, KV stores, Caching strategies | persistence, read-through cache, when a load balancer earns its keep |
 | 2 | **Going Viral** (social profile / feed under a spike) | Twitter "For You" timeline, CDNs, Scaling for millions | cache, read replicas, CDN + object storage for media, autoscaling |
 | 3 | **Around the World** (global app + region outage) | CAP theorem, High availability, Read replica pattern | multi-region, GeoDNS/edge, replication, CAP trade-off, chaos/redundancy |
+| 4 | **Hold the Line** (public API under abuse) | API Gateway 101, Designing Effective & Safe APIs | API gateway as front door, rate limiting, autoscaling under bursts — `tag: gateway` |
+| 5 | **Ping Everyone** (notifications at fan-out scale) | Push Notification System, Message Queues | async fan-out via queue + workers, accept-fast/deliver-steadily — `tag: fanout` |
+| 6 | **Find It Fast** (search & autocomplete) | How Search Engines Work, Elasticsearch use cases | search index vs DB scan, caching hot queries — `tag: search` |
+| 7 | **Lights, Camera, Upload** (video platform, capstone) | YouTube upload handling, Large file to S3, CDNs | object storage + CDN for media, off-request-path transcoding — `tag: transcode` |
+
+New engine work these added: a tag-gated `domainChecks` module
+(`src/engine/checks/domain.ts`) for the gateway / search / fan-out / transcode
+lessons, an optional `tags` field on `Level`, and a handful of requirement
+keywords. No new tools were needed — the existing catalog covered them.
 
 ---
 
-## 🌊 Wave 1 — Core building blocks (next up)
-
-Reinforces the fundamentals every interview leans on. Mostly reuses existing
-tools/checks.
+## 🌊 Wave 2 — More building blocks & content systems (next up)
 
 | Level | ByteByteGo source | New tools | New checks |
 |-------|-------------------|-----------|------------|
-| **Design a Rate Limiter** | "API Gateway 101", "Designing Effective & Safe APIs" | `rate_limiter` (or reuse `api_gateway`) | `apiChecks`: public traffic with no gateway/rate limit; abuse/burst protection |
-| **Design a Notification System** | "Push Notification System Architecture", "How are Notifications Pushed…" | `push_provider` (APNs/FCM) | extend `messagingChecks`: fan-out via queue + workers, retry/delivery semantics |
 | **Design a Key-Value Store** | "Consistent Hashing", "Data Sharding Algorithms", "7 Strategies to Scale Your Database" | `shard`/`coordinator` | `shardingChecks`: hot-shard / uneven partitioning, consistent hashing nudge |
 | **Design a Unique ID Generator** | "5 Unique ID Generators in Distributed Systems" | — | `idChecks`: single-DB sequence as a bottleneck/SPOF; Snowflake-style hint |
-
-## 🌊 Wave 2 — Read-heavy & content systems
-
-| Level | ByteByteGo source | New tools | New checks |
-|-------|-------------------|-----------|------------|
-| **Design a News Feed** (Twitter/Reddit) | "Twitter For You", "Reddit Core Architecture" | `pubsub` (have it), `feed_cache` | fan-out-on-write vs read; celebrity-fanout hint |
-| **Design YouTube / Video Upload** | "YouTube Massive Video Upload Handling", "Upload a Large File to S3" | `transcoder` worker, `object_storage` (have) | large-file path, async transcoding via queue, CDN delivery |
-| **Design a Search Engine / Autocomplete** | "How Do Search Engines Work?", "Elasticsearch use cases" | `search_index` (have), `crawler` | search index vs DB scan; indexing pipeline |
-| **Design Google Maps / Proximity Service** | "Design Google Maps", "Proximity Service", "Quadtree" | `geo_index` (quadtree) | geospatial index vs full scan; sharding by region |
+| **Design a News Feed** (Twitter/Reddit) | "Twitter For You", "Reddit Core Architecture" | `feed_cache` | fan-out-on-write vs read; celebrity-fanout hint (`tag: feed`) |
+| **Design Google Maps / Proximity Service** | "Design Google Maps", "Proximity Service", "Quadtree" | `geo_index` (quadtree) | geospatial index vs full scan; sharding by region (`tag: geo`) |
 
 ## 🌊 Wave 3 — Real-time & stateful systems
 
