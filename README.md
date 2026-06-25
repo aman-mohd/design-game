@@ -1,5 +1,7 @@
 # 🦉 DesignQuest
 
+### ▶️ [Play it live: designquest.netlify.app](https://designquest.netlify.app/)
+
 A **Duolingo-styled game that teaches system design by doing.** You're given a
 system to build, you drag real components onto a canvas, then you **send traffic**
 and watch where it breaks. The game never just says "you lost" — it explains *why*
