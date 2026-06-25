@@ -8,6 +8,9 @@ import { ToolsDrawer } from './ToolsDrawer';
 import { TrafficPanel } from './TrafficPanel';
 import { ResultsPanel } from './ResultsPanel';
 import { ScoreCard } from './ScoreCard';
+import { DesignReviewModal } from './DesignReviewModal';
+import { BestSolutionModal } from './BestSolutionModal';
+import { buildDesignReview } from '../../engine/review';
 
 type Tab = 'build' | 'traffic' | 'report';
 
@@ -19,16 +22,23 @@ export function GameScreen() {
   const startLevel = useGame((s) => s.startLevel);
   const goToMap = useGame((s) => s.goToMap);
   const score = useGame((s) => s.score);
+  const graph = useGame((s) => s.graph);
+  const traffic = useGame((s) => s.traffic);
+  const result = useGame((s) => s.result);
   const findingsCount = useGame((s) => s.result?.findings.length ?? 0);
   const hasRunOnce = useGame((s) => s.hasRunOnce);
 
   const [tab, setTab] = useState<Tab>('build');
   const [showScore, setShowScore] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [showBest, setShowBest] = useState(false);
 
   // Reset local UI when switching levels.
   useEffect(() => {
     setTab('build');
     setShowScore(false);
+    setShowReview(false);
+    setShowBest(false);
   }, [levelId]);
 
   const handleSend = () => {
@@ -82,7 +92,7 @@ export function GameScreen() {
                   Tune the real-world conditions, then unleash it on your design.
                 </p>
               </div>
-              <TrafficPanel onSend={handleSend} />
+              <TrafficPanel level={level} onSend={handleSend} />
             </div>
           )}
           {tab === 'report' && <ResultsPanel onSubmit={handleSubmit} />}
@@ -94,9 +104,28 @@ export function GameScreen() {
           score={score}
           levelTitle={level.title}
           hasNextLevel={hasNext}
+          hasBestSolution={Boolean(level.bestSolution)}
+          onReview={() => setShowReview(true)}
+          onShowBest={() => setShowBest(true)}
           onRetry={() => setShowScore(false)}
           onNext={() => startLevel(level.id + 1)}
           onMap={goToMap}
+        />
+      )}
+
+      {showReview && result && (
+        <DesignReviewModal
+          review={buildDesignReview(graph, traffic, level, result)}
+          levelTitle={level.title}
+          onClose={() => setShowReview(false)}
+        />
+      )}
+
+      {showBest && level.bestSolution && (
+        <BestSolutionModal
+          solution={level.bestSolution}
+          levelTitle={level.title}
+          onClose={() => setShowBest(false)}
         />
       )}
     </div>

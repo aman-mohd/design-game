@@ -59,6 +59,9 @@ describe('App smoke', () => {
     render(<App />);
     // Switch to the Traffic tab and send traffic.
     fireEvent.click(screen.getByText('Traffic'));
+    // Level 1 hides knobs it can't resolve: no chaos toggle, no multi-region.
+    expect(screen.queryByText('Chaos (kill a node)')).toBeNull();
+    expect(screen.queryByText('Traffic origins')).toBeNull();
     fireEvent.click(screen.getByText('Send Traffic'));
     // Report tab now shows a traffic report.
     expect(screen.getByText('📊 Traffic Report')).toBeTruthy();
@@ -67,5 +70,30 @@ describe('App smoke', () => {
     // Submit produces a score card.
     fireEvent.click(screen.getByText('Submit Design & Get Score'));
     expect(screen.getByText(/XP$/)).toBeTruthy();
+
+    // The score card reveals the reference architecture.
+    fireEvent.click(screen.getByText('Show best solution'));
+    expect(screen.getByText('A strong solution')).toBeTruthy();
+    fireEvent.click(screen.getByText('Got it'));
+
+    // ...and offers a CAP / choices deep dive.
+    fireEvent.click(screen.getByText('Review choices & CAP options'));
+    expect(screen.getByText('Design Review')).toBeTruthy();
+    expect(screen.getByText('Other options: the CAP trade-off')).toBeTruthy();
+  });
+
+  it('deletes a user-added component via its delete button', () => {
+    useGame.getState().startLevel(1);
+    useGame.getState().addNode('cache', 300, 200);
+    const cacheId = useGame.getState().graph.nodes.find((n) => n.type === 'cache')!.id;
+
+    render(<App />);
+
+    // The custom node renders a labelled delete button for non-locked nodes.
+    const delButtons = screen.getAllByTitle('Delete component');
+    expect(delButtons.length).toBeGreaterThan(0);
+    fireEvent.click(delButtons[0]);
+
+    expect(useGame.getState().graph.nodes.some((n) => n.id === cacheId)).toBe(false);
   });
 });

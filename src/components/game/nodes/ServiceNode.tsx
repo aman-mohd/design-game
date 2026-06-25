@@ -1,8 +1,9 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Lock } from 'lucide-react';
+import { Lock, X } from 'lucide-react';
 import { Icon } from '../../ui/Icon';
 import { getTool } from '../../../data/tools';
 import { CATEGORY_COLOR } from '../../../theme/tokens';
+import { useGame } from '../../../store/gameStore';
 import type { Severity } from '../../../data/types';
 
 export interface ServiceNodeData {
@@ -10,13 +11,16 @@ export interface ServiceNodeData {
   label: string;
   locked?: boolean;
   bottleneck?: Severity | null;
+  /** Read-only presentation (no delete button, no lock badge). */
+  static?: boolean;
   [key: string]: unknown;
 }
 
-export function ServiceNode({ data, selected }: NodeProps & { data: ServiceNodeData }) {
+export function ServiceNode({ id, data, selected }: NodeProps & { data: ServiceNodeData }) {
   const tool = getTool(data.type);
   const color = tool ? CATEGORY_COLOR[tool.category] : '#999';
   const bottleneck = data.bottleneck;
+  const removeNode = useGame((s) => s.removeNode);
 
   const ring =
     bottleneck === 'critical'
@@ -29,7 +33,7 @@ export function ServiceNode({ data, selected }: NodeProps & { data: ServiceNodeD
 
   return (
     <div
-      className={`relative flex w-[120px] flex-col items-center gap-1 rounded-2xl border-2 border-line bg-white px-2 py-3 shadow-card transition-all ${ring}`}
+      className={`group relative flex w-[120px] flex-col items-center gap-1 rounded-2xl border-2 border-line bg-white px-2 py-3 shadow-card transition-all ${ring}`}
     >
       <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-2 !border-white !bg-subtle" />
       <div
@@ -41,10 +45,24 @@ export function ServiceNode({ data, selected }: NodeProps & { data: ServiceNodeD
       <div className="text-center font-display text-sm font-bold leading-tight text-ink">
         {data.label}
       </div>
-      {data.locked && (
+      {data.static ? null : data.locked ? (
         <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-cloud text-subtle shadow">
           <Lock className="h-3.5 w-3.5" />
         </div>
+      ) : (
+        <button
+          type="button"
+          title="Delete component"
+          aria-label="Delete component"
+          className="nodrag absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white shadow opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            removeNode(id);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={3} />
+        </button>
       )}
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-white !bg-subtle" />
     </div>

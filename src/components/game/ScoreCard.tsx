@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Zap, RotateCcw, ArrowRight } from 'lucide-react';
+import { Star, Zap, RotateCcw, ArrowRight, Telescope, Lightbulb } from 'lucide-react';
 import type { ScoreBreakdown } from '../../data/types';
 import { Mascot } from '../ui/Mascot';
 
@@ -8,12 +8,25 @@ interface Props {
   score: ScoreBreakdown;
   levelTitle: string;
   hasNextLevel: boolean;
+  hasBestSolution: boolean;
+  onReview: () => void;
+  onShowBest: () => void;
   onRetry: () => void;
   onNext: () => void;
   onMap: () => void;
 }
 
-export function ScoreCard({ score, levelTitle, hasNextLevel, onRetry, onNext, onMap }: Props) {
+export function ScoreCard({
+  score,
+  levelTitle,
+  hasNextLevel,
+  hasBestSolution,
+  onReview,
+  onShowBest,
+  onRetry,
+  onNext,
+  onMap,
+}: Props) {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
       <Confetti count={score.stars >= 2 ? 60 : 0} />
@@ -57,6 +70,23 @@ export function ScoreCard({ score, levelTitle, hasNextLevel, onRetry, onNext, on
               </li>
             ))}
           </ul>
+
+          <div className="mt-3 space-y-2">
+            <button
+              onClick={onReview}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-cat-network bg-cat-network/10 px-4 py-2.5 font-display text-sm font-extrabold text-cat-network transition-all hover:bg-cat-network/20 active:translate-y-0.5"
+            >
+              <Telescope className="h-4 w-4" /> Review choices & CAP options
+            </button>
+            {hasBestSolution && (
+              <button
+                onClick={onShowBest}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-duo-greenDark bg-duo-green/10 px-4 py-2.5 font-display text-sm font-extrabold text-duo-greenDark transition-all hover:bg-duo-green/20 active:translate-y-0.5"
+              >
+                <Lightbulb className="h-4 w-4" /> Show best solution
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2 border-t-2 border-line p-4">

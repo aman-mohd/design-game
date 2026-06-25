@@ -1,22 +1,69 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   ReactFlowProvider,
   useReactFlow,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
   type Node,
   type Edge,
   type Connection,
   type NodeChange,
   type EdgeChange,
+  type EdgeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { X } from 'lucide-react';
 import { useGame } from '../../store/gameStore';
 import { ServiceNode, type ServiceNodeData } from './nodes/ServiceNode';
 import type { Severity } from '../../data/types';
 
 const nodeTypes = { service: ServiceNode };
+
+function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style }: EdgeProps) {
+  const [hovered, setHovered] = useState(false);
+  const removeEdge = useGame((s) => s.removeEdge);
+  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+
+  return (
+    <>
+      <BaseEdge path={edgePath} style={style} />
+      {/* Wider transparent stroke to make hover easier to trigger */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{ cursor: 'pointer' }}
+      />
+      <EdgeLabelRenderer>
+        <button
+          className="nodrag nopan absolute flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-400 shadow-sm transition-opacity hover:border-red-300 hover:bg-red-50 hover:text-red-500"
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: 'all',
+            opacity: hovered ? 1 : 0,
+          }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            removeEdge(id);
+          }}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const edgeTypes = { deletable: DeletableEdge };
 
 function CanvasInner() {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -29,6 +76,8 @@ function CanvasInner() {
   const removeNode = useGame((s) => s.removeNode);
   const connect = useGame((s) => s.connect);
   const removeEdge = useGame((s) => s.removeEdge);
+
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<Set<string>>(new Set());
 
   // Map findings → highest severity per node, for highlighting.
   const bottleneckByNode = useMemo(() => {
@@ -65,25 +114,25 @@ function CanvasInner() {
       graph.edges.map((e) => {
         const onPath =
           bottleneckByNode.has(e.source) || bottleneckByNode.has(e.target);
+        const isSelected = selectedEdgeIds.has(e.id);
         return {
           id: e.id,
+          type: 'deletable',
           source: e.source,
           target: e.target,
           animated: true,
+          selected: isSelected,
           style: {
-            stroke: onPath ? '#FF4B4B' : '#1CB0F6',
-            strokeWidth: onPath ? 4 : 3,
+            stroke: onPath ? '#FF4B4B' : isSelected ? '#F5A623' : '#1CB0F6',
+            strokeWidth: onPath ? 4 : isSelected ? 4 : 3,
           },
         };
       }),
-    [graph.edges, bottleneckByNode],
+    [graph.edges, bottleneckByNode, selectedEdgeIds],
   );
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      // React Flow is a view; the store is the source of truth. Commit the
-      // position/remove changes we care about (interim positions included so
-      // dragging stays smooth).
       for (const c of changes) {
         if (c.type === 'position' && c.position) {
           moveNode(c.id, c.position.x, c.position.y);
@@ -97,7 +146,22 @@ function CanvasInner() {
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       for (const c of changes) {
-        if (c.type === 'remove') removeEdge(c.id);
+        if (c.type === 'remove') {
+          removeEdge(c.id);
+          setSelectedEdgeIds((prev) => {
+            const next = new Set(prev);
+            next.delete(c.id);
+            return next;
+          });
+        }
+        if (c.type === 'select') {
+          setSelectedEdgeIds((prev) => {
+            const next = new Set(prev);
+            if (c.selected) next.add(c.id);
+            else next.delete(c.id);
+            return next;
+          });
+        }
       }
     },
     [removeEdge],
@@ -132,6 +196,7 @@ function CanvasInner() {
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

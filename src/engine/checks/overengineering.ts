@@ -29,6 +29,25 @@ export function overengineeringChecks(
     });
   }
 
+  // Two different primary databases — usually one too many.
+  if (hasType(graph, 'sql_db') && hasType(graph, 'nosql_db')) {
+    findings.push({
+      id: 'cost-redundant-databases',
+      category: 'cost',
+      severity: 'info',
+      nodeIds: [
+        ...nodesOfType(graph, 'sql_db').map((n) => n.id),
+        ...nodesOfType(graph, 'nosql_db').map((n) => n.id),
+      ],
+      title: 'Two primary databases to run',
+      why: 'You are running both a SQL and a NoSQL primary. Polyglot persistence is sometimes the right call, but each store is its own thing to operate, scale, back up and keep in sync — most designs here pick the one that fits the access pattern.',
+      hints: [
+        'What does each database give you that the other does not, at this scale?',
+        'Unless one earns a distinct, clear job, consolidate onto a single primary.',
+      ],
+    });
+  }
+
   // Heavyweight async/event infra on a tiny, low-traffic, non-bursty workload.
   const heavyAsync = hasType(graph, 'pubsub') || hasType(graph, 'message_queue');
   if (heavyAsync && traffic.rps < 5000 && !traffic.spike) {

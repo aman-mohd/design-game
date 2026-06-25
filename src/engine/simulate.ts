@@ -10,6 +10,7 @@ import {
   hasAnyDataStore,
   hasType,
   reachableFromClient,
+  typeConnectsToType,
   DATA_STORE_TYPES,
 } from '../lib/graph';
 import { topologyChecks } from './checks/topology';
@@ -19,6 +20,7 @@ import { networkChecks } from './checks/network';
 import { messagingChecks } from './checks/messaging';
 import { resilienceChecks } from './checks/resilience';
 import { overengineeringChecks } from './checks/overengineering';
+import { wiringChecks } from './checks/wiring';
 
 type Check = (graph: DesignGraph, traffic: TrafficConfig, level: Level) => Finding[];
 
@@ -30,9 +32,33 @@ const CHECKS: Check[] = [
   messagingChecks,
   resilienceChecks,
   overengineeringChecks,
+  wiringChecks,
 ];
 
 const SEVERITY_RANK = { critical: 0, warn: 1, info: 2 } as const;
+
+/**
+ * Tools that can resolve a given finding. Used as a backstop: a finding is
+ * suppressed when *none* of its remedy tools is in the level's toolbox, so a
+ * level never asks the player to fix something they have no tool for. Findings
+ * without an entry here are always shown (their fix is wiring/topology/cost,
+ * available on every level).
+ */
+export const REMEDY_TOOLS: Record<string, string[]> = {
+  'net-large-payload': ['cdn', 'object_storage'],
+  'net-no-cdn-global': ['cdn'],
+  'data-no-replica': ['read_replica'],
+  'res-data-spof': ['read_replica'],
+  'msg-no-queue-spike': ['message_queue', 'pubsub'],
+  'compute-no-autoscale': ['autoscaler'],
+};
+
+/** True when the player has a tool in this level capable of resolving `id`. */
+export function isFindingResolvable(findingId: string, level: Level): boolean {
+  const remedies = REMEDY_TOOLS[findingId];
+  if (!remedies) return true; // no tool dependency — always actionable
+  return remedies.some((t) => level.availableToolIds.includes(t));
+}
 
 /** Run every check and return de-duplicated, severity-sorted findings. */
 export function simulate(
@@ -45,6 +71,8 @@ export function simulate(
   for (const check of CHECKS) {
     for (const f of check(graph, traffic, level)) {
       if (seen.has(f.id)) continue;
+      // Backstop: don't surface a bottleneck this level has no tool to fix.
+      if (!isFindingResolvable(f.id, level)) continue;
       seen.add(f.id);
       findings.push(f);
     }
@@ -108,6 +136,17 @@ function requirementSatisfied(
     return hasAnyDataStore(graph) && dataReachable;
   }
   if (t.includes('image') || t.includes('media') || t.includes('photo')) {
+    // A performance-oriented media requirement ("serve large images quickly")
+    // needs the media to actually be edge-served: object storage reachable AND
+    // a CDN fronting it — not merely both components sitting on the board.
+    const perfMedia = t.includes('large') || t.includes('quick') || t.includes('fast');
+    if (perfMedia) {
+      return (
+        reachableFromClient(graph, 'object_storage') &&
+        typeConnectsToType(graph, 'cdn', 'object_storage')
+      );
+    }
+    // Incidental mention of images: presence is enough.
     return hasType(graph, 'object_storage') || hasType(graph, 'cdn');
   }
   if (t.includes('spike') || t.includes('flash') || t.includes('crowd')) {

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   DesignEdge,
   DesignGraph,
   DesignNode,
+  Level,
   ScoreBreakdown,
   SimulationResult,
   TrafficConfig,
@@ -100,7 +101,7 @@ export const useGame = create<GameState>()(
           view: 'game',
           currentLevelId: id,
           graph: buildInitialGraph(id),
-          traffic: { ...level.trafficDefaults },
+          traffic: clampTraffic({ ...level.trafficDefaults }, level),
           result: null,
           score: null,
           hasRunOnce: false,
@@ -155,7 +156,11 @@ export const useGame = create<GameState>()(
         })),
 
       setTraffic: (patch) =>
-        set((s) => ({ traffic: { ...s.traffic, ...patch }, score: null })),
+        set((s) => {
+          const level = s.currentLevelId ? getLevel(s.currentLevelId) : null;
+          const merged = { ...s.traffic, ...patch };
+          return { traffic: level ? clampTraffic(merged, level) : merged, score: null };
+        }),
 
       runSimulation: () => {
         const { graph, traffic, currentLevelId } = get();
@@ -194,6 +199,7 @@ export const useGame = create<GameState>()(
     }),
     {
       name: 'designquest-progress',
+      storage: createJSONStorage(safeStorage),
       partialize: (s): PersistedState => ({
         xp: s.xp,
         streak: s.streak,
@@ -202,6 +208,64 @@ export const useGame = create<GameState>()(
     },
   ),
 );
+
+/**
+ * Returns localStorage when it's actually writable, otherwise an in-memory
+ * fallback. Guards against Safari private mode, sandboxed iframes, and test
+ * runners where `localStorage` exists but throws on write.
+ */
+function safeStorage(): Storage {
+  try {
+    const probe = '__designquest_probe__';
+    globalThis.localStorage.setItem(probe, probe);
+    globalThis.localStorage.removeItem(probe);
+    return globalThis.localStorage;
+  } catch {
+    const mem = new Map<string, string>();
+    return {
+      getItem: (k) => (mem.has(k) ? mem.get(k)! : null),
+      setItem: (k, v) => void mem.set(k, String(v)),
+      removeItem: (k) => void mem.delete(k),
+      clear: () => mem.clear(),
+      key: (i) => Array.from(mem.keys())[i] ?? null,
+      get length() {
+        return mem.size;
+      },
+    } as Storage;
+  }
+}
+
+/**
+ * Force a traffic config into a level's allowed envelope so the player can never
+ * dial in a scenario the level's toolbox can't resolve (e.g. huge payloads or
+ * multi-region on the URL-shortener level). Mirrors the bounds the TrafficPanel
+ * enforces in the UI, and guards persisted/edge-case values.
+ */
+export function clampTraffic(traffic: TrafficConfig, level: Level): TrafficConfig {
+  const c = level.trafficConstraints;
+  if (!c) return traffic;
+
+  const clampNum = (n: number, lo?: number, hi?: number) =>
+    Math.max(lo ?? -Infinity, Math.min(hi ?? Infinity, n));
+
+  let regions = traffic.regions;
+  if (c.singleRegion) {
+    regions = regions.slice(0, 1);
+  } else if (c.allowedRegions) {
+    regions = regions.filter((r) => c.allowedRegions!.includes(r));
+    if (regions.length === 0) regions = traffic.regions.slice(0, 1);
+  }
+
+  return {
+    ...traffic,
+    rps: clampNum(traffic.rps, c.rpsMin, c.rpsMax),
+    payloadKb: clampNum(traffic.payloadKb, c.payloadMinKb, c.payloadMaxKb),
+    latencySlaMs: clampNum(traffic.latencySlaMs, c.latencyMinMs, c.latencyMaxMs),
+    spike: c.allowSpike === false ? false : traffic.spike,
+    failureInjection: c.allowChaos === false ? false : traffic.failureInjection,
+    regions,
+  };
+}
 
 /** A level is unlocked if it's the first, or the previous one is completed. */
 export function isLevelUnlocked(levelId: number, progress: Record<number, LevelProgress>): boolean {

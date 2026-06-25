@@ -74,6 +74,39 @@ export function reachableFromClient(graph: DesignGraph, targetType: string): boo
   return false;
 }
 
+/**
+ * Directed reachability from any client to a specific node. If
+ * `avoidThroughTypes` is given, traversal does not continue *through* nodes of
+ * those types (it may still land on the target itself). Useful for asking
+ * "can a request reach this node before passing through a data store?".
+ */
+export function clientCanReachNode(
+  graph: DesignGraph,
+  targetId: string,
+  avoidThroughTypes: string[] = [],
+): boolean {
+  const clients = nodesOfType(graph, 'client').map((n) => n.id);
+  if (clients.length === 0) return false;
+  const avoid = new Set(avoidThroughTypes);
+  const typeOf = new Map(graph.nodes.map((n) => [n.id, n.type]));
+
+  const seen = new Set<string>(clients);
+  const queue = [...clients];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    if (cur === targetId) return true;
+    // Don't expand outward through an avoided node (e.g. a data store).
+    if (avoid.has(typeOf.get(cur) ?? '')) continue;
+    for (const nb of neighborsOut(graph, cur)) {
+      if (!seen.has(nb)) {
+        seen.add(nb);
+        queue.push(nb);
+      }
+    }
+  }
+  return false;
+}
+
 /** Any data store present (the place persistent state lives). */
 export const DATA_STORE_TYPES = ['sql_db', 'nosql_db', 'object_storage'];
 

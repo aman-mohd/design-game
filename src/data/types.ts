@@ -64,6 +64,28 @@ export const ALL_REGIONS = [
   'Oceania',
 ] as const;
 
+/**
+ * Per-level bounds & visibility for the traffic knobs, so a level can never
+ * present a scenario the player can't resolve with its toolbox. All fields are
+ * optional; unset means "full range / visible".
+ */
+export interface TrafficConstraints {
+  rpsMin?: number;
+  rpsMax?: number;
+  payloadMinKb?: number;
+  payloadMaxKb?: number;
+  latencyMinMs?: number;
+  latencyMaxMs?: number;
+  /** Force a single region (hide the multi-region toggles). */
+  singleRegion?: boolean;
+  /** Subset of ALL_REGIONS offered when multi-region is allowed. */
+  allowedRegions?: string[];
+  /** Show the traffic-spike toggle. Default true. */
+  allowSpike?: boolean;
+  /** Show the chaos / failure-injection toggle. Default true. */
+  allowChaos?: boolean;
+}
+
 // ── Simulation output ────────────────────────────────────────────────────────
 
 export type Severity = 'critical' | 'warn' | 'info';
@@ -104,6 +126,14 @@ export interface PrePlacedNode {
   locked?: boolean;
 }
 
+/** A reference "best" architecture shown after submission. */
+export interface SolutionGraph {
+  nodes: PrePlacedNode[];
+  edges: { id: string; source: string; target: string }[];
+  /** Short note on why this is a strong design. */
+  rationale?: string;
+}
+
 export interface Rubric {
   /** node types whose presence is "ideal" for this level. */
   idealComponents: string[];
@@ -115,6 +145,22 @@ export interface Rubric {
   };
   /** number of nodes beyond which we suspect over-engineering for this level. */
   complexityBudget: number;
+}
+
+/**
+ * Curated CAP-theorem guidance for a level: which way the system should lean and
+ * how the architecture changes under each priority. Powers the post-submit
+ * design review so players see how different requirements lead to different
+ * "right" answers.
+ */
+export interface CapGuidance {
+  /** The lean this system should take, and why scoring nudges toward it. */
+  recommended: Consistency;
+  summary: string;
+  /** What the design emphasises if you prioritise strong consistency (CP). */
+  consistencyPath: string;
+  /** What the design emphasises if you prioritise availability (AP). */
+  availabilityPath: string;
 }
 
 export interface Level {
@@ -129,6 +175,12 @@ export interface Level {
   prePlacedEdges?: { id: string; source: string; target: string }[];
   availableToolIds: string[];
   trafficDefaults: TrafficConfig;
+  /** Per-level bounds & visibility for the traffic knobs. */
+  trafficConstraints?: TrafficConstraints;
+  /** CAP-theorem guidance shown in the post-submit review. */
+  cap?: CapGuidance;
+  /** A reference architecture revealed by the "Show best solution" button. */
+  bestSolution?: SolutionGraph;
   rubric: Rubric;
   /** Source material this level is grounded in (e.g. ByteByteGo topics). */
   references?: { label: string; url: string }[];

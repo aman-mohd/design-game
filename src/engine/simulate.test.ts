@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { simulate } from './simulate';
+import { simulate, REMEDY_TOOLS, isFindingResolvable } from './simulate';
+import { networkChecks } from './checks/network';
 import { scoreDesign } from './scoring';
-import { getLevel } from '../data/levels';
+import { getLevel, LEVELS } from '../data/levels';
 import type { DesignGraph, TrafficConfig, Level } from '../data/types';
 
 const L1 = getLevel(1) as Level;
+const L2 = getLevel(2) as Level;
 
 function graph(
   nodes: Array<{ id: string; type: string; locked?: boolean }>,
@@ -200,7 +202,7 @@ describe('data checks', () => {
   });
 });
 
-describe('network checks', () => {
+describe('network checks (unit, bypassing the toolbox backstop)', () => {
   it('flags global traffic with no CDN', () => {
     const g = graph(
       [
@@ -214,7 +216,85 @@ describe('network checks', () => {
       ],
     );
     const t: TrafficConfig = { ...baseTraffic, regions: ['N. America', 'Asia'] };
-    expect(hasFinding(g, t, 'net-no-cdn-global')).toBe(true);
+    // Call the check directly: the engine backstop would suppress this on L1
+    // (no CDN in its toolbox), so we verify the rule itself here.
+    expect(networkChecks(g, t, L1).some((f) => f.id === 'net-no-cdn-global')).toBe(true);
+  });
+
+  it('flags large payloads with no CDN or object storage', () => {
+    const g = graph(
+      [
+        { id: 'c', type: 'client' },
+        { id: 'a', type: 'app_server' },
+        { id: 'db', type: 'sql_db' },
+      ],
+      [
+        ['c', 'a'],
+        ['a', 'db'],
+      ],
+    );
+    const t: TrafficConfig = { ...baseTraffic, payloadKb: 800 };
+    expect(networkChecks(g, t, L1).some((f) => f.id === 'net-large-payload')).toBe(true);
+  });
+});
+
+describe('toolbox backstop (no unresolvable findings)', () => {
+  const weak = () =>
+    graph(
+      [
+        { id: 'c', type: 'client' },
+        { id: 'a', type: 'app_server' },
+        { id: 'db', type: 'sql_db' },
+      ],
+      [
+        ['c', 'a'],
+        ['a', 'db'],
+      ],
+    );
+
+  it('suppresses the large-payload finding on Level 1 (no CDN/object storage in toolbox)', () => {
+    const t: TrafficConfig = { ...baseTraffic, payloadKb: 800 };
+    expect(hasFinding(weak(), t, 'net-large-payload', L1)).toBe(false);
+  });
+
+  it('suppresses the global-CDN finding on Level 1', () => {
+    const t: TrafficConfig = { ...baseTraffic, regions: ['N. America', 'Asia'] };
+    expect(hasFinding(weak(), t, 'net-no-cdn-global', L1)).toBe(false);
+  });
+
+  it('still surfaces those findings on Level 2, whose toolbox has CDN + object storage', () => {
+    const big: TrafficConfig = { ...L2.trafficDefaults, payloadKb: 1500, regions: ['N. America', 'Asia'] };
+    expect(hasFinding(weak(), big, 'net-large-payload', L2)).toBe(true);
+    expect(hasFinding(weak(), big, 'net-no-cdn-global', L2)).toBe(true);
+  });
+
+  it('every level: no surfaced finding is unresolvable with its toolbox', () => {
+    // A deliberately weak design stressed with every knob maxed.
+    const g = weak();
+    for (const level of LEVELS) {
+      const stress: TrafficConfig = {
+        rps: 1_000_000,
+        regions: ['N. America', 'Europe', 'Asia', 'S. America'],
+        consistency: 'consistency',
+        readPercent: 50,
+        spike: true,
+        payloadKb: 2000,
+        latencySlaMs: 50,
+        failureInjection: true,
+      };
+      const { findings } = simulate(g, stress, level);
+      for (const f of findings) {
+        expect(
+          isFindingResolvable(f.id, level),
+          `level ${level.id} surfaced unresolvable finding ${f.id}`,
+        ).toBe(true);
+        // And if it has remedies, at least one must be in the toolbox.
+        const remedies = REMEDY_TOOLS[f.id];
+        if (remedies) {
+          expect(remedies.some((tool) => level.availableToolIds.includes(tool))).toBe(true);
+        }
+      }
+    }
   });
 });
 
@@ -278,6 +358,23 @@ describe('over-engineering checks', () => {
       [['c', 'n0'], ['n0', 'db']],
     );
     expect(hasFinding(g, baseTraffic, 'cost-too-many')).toBe(true);
+  });
+
+  it('nudges when two primary databases are used', () => {
+    const g = graph(
+      [
+        { id: 'c', type: 'client' },
+        { id: 'a', type: 'app_server' },
+        { id: 'sql', type: 'sql_db' },
+        { id: 'nosql', type: 'nosql_db' },
+      ],
+      [
+        ['c', 'a'],
+        ['a', 'sql'],
+        ['a', 'nosql'],
+      ],
+    );
+    expect(hasFinding(g, baseTraffic, 'cost-redundant-databases')).toBe(true);
   });
 });
 

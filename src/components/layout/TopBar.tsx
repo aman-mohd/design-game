@@ -13,7 +13,7 @@ export function TopBar() {
         onClick={goToMap}
         className="flex items-center gap-2 font-display text-xl font-extrabold text-duo-green"
       >
-        <img src="/owl.svg" alt="" className="h-8 w-8" />
+        <img src="/fox.svg" alt="" className="h-8 w-8" />
         <span className="hidden sm:inline">DesignQuest</span>
       </button>
 

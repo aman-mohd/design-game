@@ -1,6 +1,10 @@
 import { Activity, Globe2, Scale, Zap, BadgeAlert, FileStack, Timer } from 'lucide-react';
 import { useGame } from '../../store/gameStore';
-import { ALL_REGIONS, type Consistency } from '../../data/types';
+import { ALL_REGIONS, type Consistency, type Level } from '../../data/types';
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
 
 function formatRps(rps: number): string {
   if (rps >= 1_000_000) return `${(rps / 1_000_000).toFixed(1)}M`;
@@ -20,9 +24,19 @@ function rpsToSlider(rps: number): number {
   return Math.round((Math.log(rps / RPS_MIN) / Math.log(RPS_MAX / RPS_MIN)) * 100);
 }
 
-export function TrafficPanel({ onSend }: { onSend: () => void }) {
+export function TrafficPanel({ level, onSend }: { level: Level; onSend: () => void }) {
   const traffic = useGame((s) => s.traffic);
   const setTraffic = useGame((s) => s.setTraffic);
+
+  const c = level.trafficConstraints ?? {};
+  const payloadMin = c.payloadMinKb ?? 1;
+  const payloadMax = c.payloadMaxKb ?? 2000;
+  const latencyMin = c.latencyMinMs ?? 50;
+  const latencyMax = c.latencyMaxMs ?? 1000;
+  const regionOptions = c.allowedRegions ?? [...ALL_REGIONS];
+  const showRegions = !c.singleRegion;
+  const showSpike = c.allowSpike !== false;
+  const showChaos = c.allowChaos !== false;
 
   const toggleRegion = (r: string) => {
     const has = traffic.regions.includes(r);
@@ -39,7 +53,10 @@ export function TrafficPanel({ onSend }: { onSend: () => void }) {
           min={0}
           max={100}
           value={rpsToSlider(traffic.rps)}
-          onChange={(e) => setTraffic({ rps: sliderToRps(Number(e.target.value)) })}
+          onChange={(e) => {
+            const rps = sliderToRps(Number(e.target.value));
+            setTraffic({ rps: clamp(rps, c.rpsMin ?? RPS_MIN, c.rpsMax ?? RPS_MAX) });
+          }}
           className="duo-range"
         />
       </Row>
@@ -58,11 +75,13 @@ export function TrafficPanel({ onSend }: { onSend: () => void }) {
       <Row icon={<FileStack className="h-4 w-4" />} label="Payload size" value={`${traffic.payloadKb} KB`}>
         <input
           type="range"
-          min={1}
-          max={2000}
-          step={10}
+          min={payloadMin}
+          max={payloadMax}
+          step={payloadMax <= 32 ? 1 : 10}
           value={traffic.payloadKb}
-          onChange={(e) => setTraffic({ payloadKb: Number(e.target.value) })}
+          onChange={(e) =>
+            setTraffic({ payloadKb: clamp(Number(e.target.value), payloadMin, payloadMax) })
+          }
           className="duo-range"
         />
       </Row>
@@ -70,36 +89,40 @@ export function TrafficPanel({ onSend }: { onSend: () => void }) {
       <Row icon={<Timer className="h-4 w-4" />} label="Latency target (p99)" value={`${traffic.latencySlaMs} ms`}>
         <input
           type="range"
-          min={50}
-          max={1000}
+          min={latencyMin}
+          max={latencyMax}
           step={10}
           value={traffic.latencySlaMs}
-          onChange={(e) => setTraffic({ latencySlaMs: Number(e.target.value) })}
+          onChange={(e) =>
+            setTraffic({ latencySlaMs: clamp(Number(e.target.value), latencyMin, latencyMax) })
+          }
           className="duo-range"
         />
       </Row>
 
-      <div>
-        <Label icon={<Globe2 className="h-4 w-4" />} label="Traffic origins" />
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {ALL_REGIONS.map((r) => {
-            const on = traffic.regions.includes(r);
-            return (
-              <button
-                key={r}
-                onClick={() => toggleRegion(r)}
-                className={`rounded-full border-2 px-3 py-1 text-xs font-bold transition-all ${
-                  on
-                    ? 'border-duo-greenDark bg-duo-green text-white'
-                    : 'border-line bg-white text-subtle hover:bg-cloud'
-                }`}
-              >
-                {r}
-              </button>
-            );
-          })}
+      {showRegions && (
+        <div>
+          <Label icon={<Globe2 className="h-4 w-4" />} label="Traffic origins" />
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {regionOptions.map((r) => {
+              const on = traffic.regions.includes(r);
+              return (
+                <button
+                  key={r}
+                  onClick={() => toggleRegion(r)}
+                  className={`rounded-full border-2 px-3 py-1 text-xs font-bold transition-all ${
+                    on
+                      ? 'border-duo-greenDark bg-duo-green text-white'
+                      : 'border-line bg-white text-subtle hover:bg-cloud'
+                  }`}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <div>
         <Label icon={<Scale className="h-4 w-4" />} label="CAP lean" />
@@ -126,21 +149,27 @@ export function TrafficPanel({ onSend }: { onSend: () => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <ToggleChip
-          icon={<Zap className="h-4 w-4" />}
-          label="Traffic spike"
-          on={traffic.spike}
-          onClick={() => setTraffic({ spike: !traffic.spike })}
-        />
-        <ToggleChip
-          icon={<BadgeAlert className="h-4 w-4" />}
-          label="Chaos (kill a node)"
-          on={traffic.failureInjection}
-          danger
-          onClick={() => setTraffic({ failureInjection: !traffic.failureInjection })}
-        />
-      </div>
+      {(showSpike || showChaos) && (
+        <div className={`grid gap-2 ${showSpike && showChaos ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {showSpike && (
+            <ToggleChip
+              icon={<Zap className="h-4 w-4" />}
+              label="Traffic spike"
+              on={traffic.spike}
+              onClick={() => setTraffic({ spike: !traffic.spike })}
+            />
+          )}
+          {showChaos && (
+            <ToggleChip
+              icon={<BadgeAlert className="h-4 w-4" />}
+              label="Chaos (kill a node)"
+              on={traffic.failureInjection}
+              danger
+              onClick={() => setTraffic({ failureInjection: !traffic.failureInjection })}
+            />
+          )}
+        </div>
+      )}
 
       <button onClick={onSend} className="btn-green w-full text-base">
         <Zap className="h-5 w-5" fill="currentColor" /> Send Traffic
