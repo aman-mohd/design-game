@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+*.log
+
+# Test / coverage
+coverage
+
+# TypeScript incremental build info
+*.tsbuildinfo
